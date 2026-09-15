@@ -108,6 +108,7 @@ class MainWindow(QMainWindow):
             self.addAction(a)
             return a
 
+        self.a_new = act("New", self.new_document, "Ctrl+N", "Start a new PDF (keeps page settings)")
         self.a_add = act("Add images…", self.browse, "Ctrl+O")
         self.a_remove = act("Remove", self.remove_selected, tip="Remove selected images")
         self.a_clear = act("Clear all", self.clear_all)
@@ -133,7 +134,7 @@ class MainWindow(QMainWindow):
                         (self.a_up, icons.chevron(True)), (self.a_down, icons.chevron(False)),
                         (self.a_zoom_in, icons.plus()), (self.a_zoom_out, icons.minus()),
                         (self.a_undo, icons.undo()), (self.a_redo, icons.undo(redo=True)),
-                        (self.a_remove, icons.trash())):
+                        (self.a_remove, icons.trash()), (self.a_new, icons.new_document())):
             a.setIcon(icon)
 
     def _build_ui(self) -> None:
@@ -149,6 +150,7 @@ class MainWindow(QMainWindow):
         tl.setSpacing(8)
         tl.addWidget(QLabel(APP_NAME, objectName="brand"))
         tl.addSpacing(8)
+        tl.addWidget(_tool(self.a_new, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
         tl.addWidget(_tool(self.a_undo, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
         tl.addWidget(_tool(self.a_redo, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
         tl.addStretch(1)
@@ -384,6 +386,18 @@ class MainWindow(QMainWindow):
             self._select_ids([self.doc.entries[min(row, len(self.doc.entries) - 1)].id])
         self.status.showMessage(f"Removed {len(ids)} image{'s' * (len(ids) != 1)} — Ctrl+Z to undo", 5000)
 
+    def new_document(self) -> None:
+        """Start the next PDF: drop all images, keep the page settings.
+        Undoable, so there is no confirmation prompt."""
+        if not self.doc.entries:
+            return
+        self.doc.clear()
+        # Previews are re-decoded on demand (e.g. after Ctrl+Z), so free them.
+        self._pixmaps.clear()
+        self._thumbs.clear()
+        self._failed.clear()
+        self.status.showMessage("New PDF started — Ctrl+Z brings the previous images back", 6000)
+
     def clear_all(self) -> None:
         if not self.doc.entries:
             return
@@ -488,7 +502,7 @@ class MainWindow(QMainWindow):
         for a in (self.a_remove, self.a_up, self.a_down, self.a_rot_l, self.a_rot_r,
                   self.a_fit, self.a_fill, self.a_center, self.a_reset):
             a.setEnabled(has_sel)
-        for a in (self.a_clear, self.a_sort, self.a_export, self.a_select_all,
+        for a in (self.a_new, self.a_clear, self.a_sort, self.a_export, self.a_select_all,
                   self.a_zoom_in, self.a_zoom_out, self.a_fit_page, self.a_fit_width):
             a.setEnabled(n > 0)
         self.export_btn.setEnabled(n > 0)
@@ -556,6 +570,8 @@ class MainWindow(QMainWindow):
         box.setText(f"Saved {len(entries)} page{'s' * (len(entries) != 1)} to\n{path}\n({size_mb:.1f} MB)")
         open_btn = box.addButton("Open PDF", QMessageBox.ButtonRole.AcceptRole)
         folder_btn = box.addButton("Show in folder", QMessageBox.ButtonRole.ActionRole)
+        new_btn = box.addButton("New PDF", QMessageBox.ButtonRole.ActionRole)
+        new_btn.setToolTip("Clear the images and start the next PDF (Ctrl+N)")
         box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(open_btn)
         box.exec()
@@ -563,6 +579,8 @@ class MainWindow(QMainWindow):
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
         elif box.clickedButton() is folder_btn:
             subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
+        elif box.clickedButton() is new_btn:
+            self.new_document()
 
     # ------------------------------------------------- window-level drop
 

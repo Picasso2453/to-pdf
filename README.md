@@ -26,7 +26,9 @@ Run `image-to-pdf.exe` (no installation, no Python needed). Then:
   the size of its image); orientation *Auto* (per image), Portrait or Landscape; margins in mm.
   Size and position adjustments survive changing these.
 - **Undo / redo** everything: Ctrl+Z / Ctrl+Y.
-- **Export PDF…** (Ctrl+S).
+- **Export PDF…** (Ctrl+S). The "Saved" dialog has a **New PDF** button to go straight on.
+- **New** (Ctrl+N) clears the images for the next PDF and keeps your page settings.
+  Ctrl+Z brings the previous images back.
 
 Zoom the preview with Ctrl+scroll, the −/+ buttons, *Whole page* (Ctrl+0) or *Page width*.
 

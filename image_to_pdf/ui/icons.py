@@ -79,6 +79,16 @@ def undo(redo: bool = False) -> QIcon:
     return _icon(draw)
 
 
+def new_document() -> QIcon:
+    def draw(p: QPainter) -> None:
+        # page with a folded corner and a plus
+        p.drawPolyline([QPointF(11.5, 3), QPointF(5, 3), QPointF(5, 17), QPointF(15, 17),
+                        QPointF(15, 6.5), QPointF(11.5, 3), QPointF(11.5, 6.5), QPointF(15, 6.5)])
+        p.drawLine(QPointF(10, 9), QPointF(10, 14))
+        p.drawLine(QPointF(7.5, 11.5), QPointF(12.5, 11.5))
+    return _icon(draw)
+
+
 def trash() -> QIcon:
     def draw(p: QPainter) -> None:
         p.drawLine(QPointF(4, 6), QPointF(16, 6))

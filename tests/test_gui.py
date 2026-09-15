@@ -4,7 +4,7 @@ import math
 
 import pytest
 from PIL import Image
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPointF, QSettings, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication
 
@@ -27,6 +27,7 @@ def window(app, tmp_path):
         p = tmp_path / f"img{i}.png"
         Image.new("RGB", size, (40 * i, 120, 200)).save(p)
         paths.append(str(p))
+    QSettings().clear()  # windows save page settings on close; start every test clean
     w = MainWindow()
     w.resize(1200, 800)
     w.show()
@@ -154,6 +155,21 @@ def test_remove_and_selection_follows(window):
     window.remove_selected()
     assert [e.id for e in window.doc.entries] == [ids[0], ids[2]]
     assert window.list.selected_ids() == [ids[2]]
+
+
+def test_new_document_keeps_settings_and_is_undoable(window):
+    ids = [e.id for e in window.doc.entries]
+    window.margin_spin.setValue(18)
+    window.size_combo.setCurrentText("Letter")
+    assert window.a_new.isEnabled()
+    window.a_new.trigger()
+    assert window.doc.entries == []
+    assert window.list.count() == 0 and window.view._pages == []
+    assert (window.doc.settings.size, window.doc.settings.margin_mm) == ("Letter", 18)
+    assert not window.a_new.isEnabled() and not window.a_export.isEnabled()
+    window.doc.undo()
+    assert [e.id for e in window.doc.entries] == ids
+    assert window.list.count() == 3
 
 
 @pytest.mark.parametrize("moving,row,expected", [
