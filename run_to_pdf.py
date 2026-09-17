@@ -2,7 +2,7 @@
 
 import sys
 
-from image_to_pdf.app import main
+from to_pdf.app import main
 
 if __name__ == "__main__":
     sys.exit(main())

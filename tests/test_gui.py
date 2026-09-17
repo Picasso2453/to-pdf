@@ -8,15 +8,15 @@ from PySide6.QtCore import QPointF, QSettings, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication
 
-from image_to_pdf.model import resolve
-from image_to_pdf.ui.image_list import drop_order
-from image_to_pdf.ui.main_window import MainWindow
+from to_pdf.model import resolve
+from to_pdf.ui.image_list import drop_order
+from to_pdf.ui.image_tool import ImageTool
 
 
 @pytest.fixture(scope="module")
 def app():
     a = QApplication.instance() or QApplication([])
-    a.setOrganizationName("image-to-pdf-tests")
+    a.setOrganizationName("to-pdf-tests")
     yield a
 
 
@@ -28,7 +28,7 @@ def window(app, tmp_path):
         Image.new("RGB", size, (40 * i, 120, 200)).save(p)
         paths.append(str(p))
     QSettings().clear()  # windows save page settings on close; start every test clean
-    w = MainWindow()
+    w = ImageTool()
     w.resize(1200, 800)
     w.show()
     w.add_paths(paths)

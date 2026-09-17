@@ -1,10 +1,10 @@
-# PyInstaller spec: one-file windowed build of Image to PDF.
-# Build with:  .venv\Scripts\python -m PyInstaller --noconfirm --clean image-to-pdf.spec
+# PyInstaller spec: one-file windowed build of To PDF.
+# Build with:  .venv\Scripts\python -m PyInstaller --noconfirm --clean to-pdf.spec
 
 a = Analysis(
-    ["run_image_to_pdf.py"],
+    ["run_to_pdf.py"],
     pathex=[],
-    datas=[("image_to_pdf/assets", "image_to_pdf/assets")],
+    datas=[("to_pdf/assets", "to_pdf/assets")],
     hiddenimports=[],
     excludes=[
         "tkinter", "numpy", "pytest", "pypdf",
@@ -21,8 +21,8 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="image-to-pdf",
-    icon="image_to_pdf/assets/icon.ico",
+    name="To PDF",
+    icon="to_pdf/assets/icon.ico",
     version="tools/version_info.txt",
     console=False,
     upx=False,

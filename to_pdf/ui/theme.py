@@ -16,11 +16,13 @@ SURFACE = QColor("#f6f7f9")
 
 STYLESHEET = f"""
 QMainWindow, QWidget#root {{ background: {SURFACE.name()}; }}
-QWidget {{ color: {INK.name()}; font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; font-size: 10pt; }}
+QWidget {{ color: {INK.name()}; font-family: "Segoe UI"; font-size: 10pt; }}
 
 QWidget#sidebar {{ background: #ffffff; border-right: 1px solid {BORDER.name()}; }}
 QLabel#panelTitle {{ font-size: 11pt; font-weight: 600; }}
 QLabel#hint, QLabel#zoomLabel {{ color: {MUTED.name()}; font-size: 9pt; }}
+QLabel#launcherTitle {{ font-size: 26pt; font-weight: 700; color: {ACCENT_DARK.name()}; }}
+QLabel#launcherSubtitle {{ font-size: 12.5pt; color: {MUTED.name()}; }}
 QLabel#brand {{ font-size: 13pt; font-weight: 700; color: {ACCENT_DARK.name()}; padding-right: 6px; }}
 
 QWidget#topbar, QWidget#viewbar {{ background: #ffffff; border-bottom: 1px solid {BORDER.name()}; }}
@@ -64,6 +66,20 @@ QListWidget::item:hover {{ background: #f1f5f4; }}
 QListWidget::item:selected {{ background: #dcefea; color: {INK.name()}; }}
 
 QGraphicsView {{ border: none; background: {CANVAS.name()}; }}
+QPlainTextEdit#mdEditor {{
+    font-family: "Cascadia Mono", "Cascadia Code", "Consolas", monospace; font-size: 10.5pt;
+    background: #ffffff; border: none; color: {INK.name()};
+    selection-background-color: #cfe8e1; selection-color: {INK.name()};
+}}
+QWidget#setupPanel {{ background: #ffffff; }}
+QMenu {{ background: #ffffff; border: 1px solid {BORDER.name()}; border-radius: 8px; padding: 4px; }}
+QMenu::item {{ padding: 6px 18px; border-radius: 5px; }}
+QMenu::item:selected {{ background: #dcefea; color: {INK.name()}; }}
+QFrame#emptyState {{ background: #ffffff; border: 1px solid {BORDER.name()}; border-radius: 12px; }}
+QCheckBox {{ spacing: 6px; }}
+QCheckBox::indicator {{ width: 15px; height: 15px; border: 1px solid #b9c0c9; border-radius: 4px; background: #ffffff; }}
+QCheckBox::indicator:hover {{ border-color: {ACCENT.name()}; }}
+QCheckBox::indicator:checked {{ background: {ACCENT.name()}; border-color: {ACCENT_DARK.name()}; image: url("@CHECK@"); }}
 QSplitter::handle {{ background: {BORDER.name()}; }}
 QStatusBar {{ background: #ffffff; border-top: 1px solid {BORDER.name()}; color: {MUTED.name()}; }}
 QScrollBar:vertical {{ background: transparent; width: 11px; margin: 2px; }}
@@ -90,5 +106,6 @@ def apply(app: QApplication) -> None:
     app.setPalette(pal)
     sheet = (STYLESHEET
              .replace("@CHEVRON_UP@", asset_path("chevron-up.png").replace("\\", "/"))
-             .replace("@CHEVRON_DOWN@", asset_path("chevron-down.png").replace("\\", "/")))
+             .replace("@CHEVRON_DOWN@", asset_path("chevron-down.png").replace("\\", "/"))
+             .replace("@CHECK@", asset_path("check.png").replace("\\", "/")))
     app.setStyleSheet(sheet)

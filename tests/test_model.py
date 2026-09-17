@@ -3,7 +3,7 @@ import math
 import pytest
 from dataclasses import replace
 
-from image_to_pdf.model import (
+from to_pdf.model import (
     Document,
     ImageEntry,
     PageSettings,

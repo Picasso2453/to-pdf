@@ -1,28 +1,25 @@
-"""Main window: image list on the left, PDF preview on the right."""
+"""Images → PDF: image list on the left, page preview on the right."""
 
 from __future__ import annotations
 
 import os
-import subprocess
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, QUrl, Signal
-from PySide6.QtGui import QAction, QDesktopServices, QImage, QKeySequence, QPixmap
+from PySide6.QtCore import QObject, QRunnable, QSettings, Qt, QThreadPool, QTimer, Signal
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (QApplication, QComboBox, QDoubleSpinBox, QFileDialog, QHBoxLayout,
-                               QLabel, QListWidgetItem, QMainWindow, QMenu, QMessageBox,
-                               QProgressDialog, QPushButton, QSplitter, QToolButton, QVBoxLayout,
-                               QWidget)
+                               QLabel, QListWidgetItem, QMenu, QMessageBox, QProgressDialog,
+                               QSplitter, QToolButton, QVBoxLayout, QWidget)
 
-from .. import __version__
 from ..imaging import SUPPORTED_EXTENSIONS, expand_paths, is_supported, load_display_image, probe, to_qimage
 from ..model import ORIENTATIONS, PAGE_SIZE_CHOICES, Document, ImageEntry, PageSettings
 from ..pdf_export import ExportCancelled, export_pdf
 from . import icons
+from .common import APP_NAME, ToolPage, button, show_saved_dialog, tool_button
 from .image_list import ID_ROLE, PAGE_ROLE, PIXMAP_ROLE, SUBTITLE_ROLE, ImageList
 from .page_view import PageView
 
-APP_NAME = "Image to PDF"
 PREVIEW_PX = 1800
 THUMB_PX = 120
 
@@ -45,34 +42,17 @@ class _PreviewTask(QRunnable):
             self.signals.failed.emit(self.path, str(ex))
 
 
-def _button(text: str, tip: str = "", object_name: str = "") -> QPushButton:
-    b = QPushButton(text)
-    b.setToolTip(tip)
-    b.setCursor(Qt.CursorShape.PointingHandCursor)
-    if object_name:
-        b.setObjectName(object_name)
-    return b
+class ImageTool(ToolPage):
+    kind = "images"
+    tool_title = "Images → PDF"
+    tips = ("Drag an image to move it · corners resize · top knob rotates "
+            "(Shift snaps to 15°) · Ctrl+scroll zooms")
 
-
-def _tool(action: QAction, style: Qt.ToolButtonStyle | None = None) -> QToolButton:
-    b = QToolButton()
-    b.setDefaultAction(action)
-    b.setObjectName("icon")
-    b.setCursor(Qt.CursorShape.PointingHandCursor)
-    if style is None:
-        style = (Qt.ToolButtonStyle.ToolButtonTextOnly if action.icon().isNull()
-                 else Qt.ToolButtonStyle.ToolButtonIconOnly)
-    b.setToolButtonStyle(style)
-    return b
-
-
-class MainWindow(QMainWindow):
-    def __init__(self, initial_paths: list[str] | None = None):
-        super().__init__()
-        self.setWindowTitle(APP_NAME)
-        self.resize(1320, 860)
+    def __init__(self, initial_paths: list[str] | None = None, parent=None):
+        super().__init__(parent)
         self.setAcceptDrops(True)
         self.settings_store = QSettings()
+        self.window_title = APP_NAME
 
         self.doc = Document()
         self.doc.subscribe(self._on_doc_changed)
@@ -99,32 +79,24 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ UI
 
     def _make_actions(self) -> None:
-        def act(text, slot, shortcut=None, tip=None):
-            a = QAction(text, self)
-            a.triggered.connect(slot)
-            if shortcut:
-                a.setShortcuts([QKeySequence(s) for s in (shortcut if isinstance(shortcut, list) else [shortcut])])
-            a.setToolTip(f"{tip or text}" + (f"  ({a.shortcut().toString(QKeySequence.SequenceFormat.NativeText)})" if shortcut else ""))
-            self.addAction(a)
-            return a
-
+        act = self.make_action
         self.a_new = act("New", self.new_document, "Ctrl+N", "Start a new PDF (keeps page settings)")
         self.a_add = act("Add images…", self.browse, "Ctrl+O")
         self.a_remove = act("Remove", self.remove_selected, tip="Remove selected images")
         self.a_clear = act("Clear all", self.clear_all)
         self.a_sort = act("Sort by file name", lambda: self.doc.sort_by_name())
-        self.a_up = act("▲", lambda: self._move(-1), "Ctrl+Up", "Move up")
-        self.a_down = act("▼", lambda: self._move(1), "Ctrl+Down", "Move down")
+        self.a_up = act("Up", lambda: self._move(-1), "Ctrl+Up", "Move up")
+        self.a_down = act("Down", lambda: self._move(1), "Ctrl+Down", "Move down")
         self.a_undo = act("Undo", self.doc.undo, "Ctrl+Z")
         self.a_redo = act("Redo", self.doc.redo, ["Ctrl+Y", "Ctrl+Shift+Z"])
-        self.a_rot_l = act("⟲", lambda: self.doc.rotate(self._targets(), -90), "Ctrl+Shift+R", "Rotate left 90°")
-        self.a_rot_r = act("⟳", lambda: self.doc.rotate(self._targets(), 90), "Ctrl+R", "Rotate right 90°")
+        self.a_rot_l = act("Rotate left", lambda: self.doc.rotate(self._targets(), -90), "Ctrl+Shift+R", "Rotate left 90°")
+        self.a_rot_r = act("Rotate right", lambda: self.doc.rotate(self._targets(), 90), "Ctrl+R", "Rotate right 90°")
         self.a_fit = act("Fit", lambda: self.doc.fit(self._targets()), "Ctrl+F", "Fit image inside the margins")
         self.a_fill = act("Fill", lambda: self.doc.fill(self._targets()), "Ctrl+Shift+F", "Fill the page (may crop)")
         self.a_center = act("Center", lambda: self.doc.center(self._targets()), "Ctrl+E", "Center on the page")
         self.a_reset = act("Reset", lambda: self.doc.reset(self._targets()), tip="Undo rotation and sizing")
-        self.a_zoom_in = act("+", lambda: self.view.zoom_by(1.25), ["Ctrl+=", "Ctrl++"], "Zoom in")
-        self.a_zoom_out = act("−", lambda: self.view.zoom_by(0.8), "Ctrl+-", "Zoom out")
+        self.a_zoom_in = act("Zoom in", lambda: self.view.zoom_by(1.25), ["Ctrl+=", "Ctrl++"])
+        self.a_zoom_out = act("Zoom out", lambda: self.view.zoom_by(0.8), "Ctrl+-")
         self.a_fit_page = act("Whole page", lambda: self.view.fit_page(), "Ctrl+0", "Zoom to the whole page")
         self.a_fit_width = act("Page width", lambda: self.view.fit_width(), tip="Zoom to the page width")
         self.a_export = act("Export PDF…", self.export, "Ctrl+S")
@@ -138,21 +110,22 @@ class MainWindow(QMainWindow):
             a.setIcon(icon)
 
     def _build_ui(self) -> None:
-        root = QWidget(objectName="root")
-        outer = QVBoxLayout(root)
+        outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        # top bar: brand, undo/redo, page settings, export
+        # top bar: home, title, new/undo/redo, page settings, export
         top = QWidget(objectName="topbar")
         tl = QHBoxLayout(top)
-        tl.setContentsMargins(14, 8, 14, 8)
+        tl.setContentsMargins(10, 8, 14, 8)
         tl.setSpacing(8)
-        tl.addWidget(QLabel(APP_NAME, objectName="brand"))
+        for w in self.title_block():
+            tl.addWidget(w)
         tl.addSpacing(8)
-        tl.addWidget(_tool(self.a_new, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
-        tl.addWidget(_tool(self.a_undo, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
-        tl.addWidget(_tool(self.a_redo, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
+        text_beside = Qt.ToolButtonStyle.ToolButtonTextBesideIcon
+        tl.addWidget(tool_button(self.a_new, text_beside))
+        tl.addWidget(tool_button(self.a_undo, text_beside))
+        tl.addWidget(tool_button(self.a_redo, text_beside))
         tl.addStretch(1)
 
         tl.addWidget(QLabel("Page size", objectName="hint"))
@@ -178,7 +151,7 @@ class MainWindow(QMainWindow):
         self.margin_spin.valueChanged.connect(lambda _v: self._on_settings_edited(coalesce="margin"))
         tl.addWidget(self.margin_spin)
         tl.addSpacing(12)
-        self.export_btn = _button("Export PDF…", "Save all pages as one PDF  (Ctrl+S)", "primary")
+        self.export_btn = button("Export PDF…", "Save all pages as one PDF  (Ctrl+S)", "primary")
         self.export_btn.clicked.connect(self.export)
         tl.addWidget(self.export_btn)
         outer.addWidget(top)
@@ -194,8 +167,8 @@ class MainWindow(QMainWindow):
         self.count_label = QLabel("", objectName="hint")
         head.addWidget(self.count_label)
         head.addStretch(1)
-        head.addWidget(_tool(self.a_up))
-        head.addWidget(_tool(self.a_down))
+        head.addWidget(tool_button(self.a_up))
+        head.addWidget(tool_button(self.a_down))
         sl.addLayout(head)
 
         self.list = ImageList()
@@ -208,10 +181,10 @@ class MainWindow(QMainWindow):
 
         row = QHBoxLayout()
         row.setSpacing(6)
-        add_btn = _button("+  Add images", "Add image files  (Ctrl+O)", "primary")
+        add_btn = button("+  Add images", "Add image files  (Ctrl+O)", "primary")
         add_btn.clicked.connect(self.browse)
         row.addWidget(add_btn, 1)
-        row.addWidget(_tool(self.a_remove, Qt.ToolButtonStyle.ToolButtonTextBesideIcon))
+        row.addWidget(tool_button(self.a_remove, text_beside))
         more = QToolButton()
         more.setObjectName("icon")
         more.setIcon(icons.more())
@@ -239,18 +212,18 @@ class MainWindow(QMainWindow):
         bl.setSpacing(6)
         bl.addWidget(QLabel("Selected image", objectName="hint"))
         for a in (self.a_rot_l, self.a_rot_r):
-            bl.addWidget(_tool(a))
+            bl.addWidget(tool_button(a))
         for a in (self.a_fit, self.a_fill, self.a_center, self.a_reset):
-            bl.addWidget(_tool(a))
+            bl.addWidget(tool_button(a))
         bl.addStretch(1)
-        bl.addWidget(_tool(self.a_zoom_out))
+        bl.addWidget(tool_button(self.a_zoom_out))
         self.zoom_label = QLabel("100%", objectName="zoomLabel")
         self.zoom_label.setMinimumWidth(44)
         self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bl.addWidget(self.zoom_label)
-        bl.addWidget(_tool(self.a_zoom_in))
-        bl.addWidget(_tool(self.a_fit_page))
-        bl.addWidget(_tool(self.a_fit_width))
+        bl.addWidget(tool_button(self.a_zoom_in))
+        bl.addWidget(tool_button(self.a_fit_page))
+        bl.addWidget(tool_button(self.a_fit_width))
         rl.addWidget(bar)
 
         self.view = PageView()
@@ -269,22 +242,12 @@ class MainWindow(QMainWindow):
         self.splitter.setHandleWidth(1)
         self.splitter.setChildrenCollapsible(False)
         outer.addWidget(self.splitter, 1)
-        self.setCentralWidget(root)
-
-        self.status = self.statusBar()
-        self.status.setSizeGripEnabled(False)
-        tips = QLabel("Drag an image to move it · corners resize · top knob rotates "
-                      "(Shift snaps to 15°) · Ctrl+scroll zooms", objectName="hint")
-        self.status.addPermanentWidget(tips)
 
     # ------------------------------------------------------------ state
 
     def _restore_state(self) -> None:
         s = self.settings_store
-        geo = s.value("window/geometry")
-        if geo is not None:
-            self.restoreGeometry(geo)
-        split = s.value("window/splitter")
+        split = s.value("images/splitter")
         if split is not None:
             self.splitter.restoreState(split)
         size = s.value("page/size", "A4")
@@ -297,15 +260,23 @@ class MainWindow(QMainWindow):
         self.doc.settings = PageSettings(size if size in PAGE_SIZE_CHOICES else "A4",
                                          orient if orient in ORIENTATIONS else "auto", margin)
 
-    def closeEvent(self, ev) -> None:
+    def save_state(self) -> None:
         s = self.settings_store
-        s.setValue("window/geometry", self.saveGeometry())
-        s.setValue("window/splitter", self.splitter.saveState())
+        s.setValue("images/splitter", self.splitter.saveState())
         s.setValue("page/size", self.doc.settings.size)
         s.setValue("page/orientation", self.doc.settings.orientation)
         s.setValue("page/margin_mm", self.doc.settings.margin_mm)
         self._pool.clear()
+
+    def closeEvent(self, ev) -> None:  # when used as a standalone window (tests)
+        self.save_state()
         super().closeEvent(ev)
+
+    def open_paths(self, paths: list[str]) -> None:
+        self.add_paths(paths)
+
+    def focus_default(self) -> None:
+        self.view.setFocus()
 
     # ---------------------------------------------------------- adding
 
@@ -338,7 +309,7 @@ class MainWindow(QMainWindow):
             for e in entries:
                 self._request_preview(e.path)
             self._select_ids([e.id for e in entries[:1]])
-            self.status.showMessage(f"Added {len(entries)} image{'s' * (len(entries) != 1)}", 4000)
+            self.notify(f"Added {len(entries)} image{'s' * (len(entries) != 1)}")
         if errors:
             shown = "\n".join(f"• {os.path.basename(p)} — {why}" for p, why in errors[:12])
             more = f"\n…and {len(errors) - 12} more" if len(errors) > 12 else ""
@@ -366,7 +337,7 @@ class MainWindow(QMainWindow):
     def _on_preview_failed(self, path: str, message: str) -> None:
         self._pending.discard(path)
         self._failed[path] = message
-        self.status.showMessage(f"Could not decode {os.path.basename(path)}: {message}", 8000)
+        self.notify(f"Could not decode {os.path.basename(path)}: {message}", 8000)
 
     # --------------------------------------------------------- editing
 
@@ -384,7 +355,7 @@ class MainWindow(QMainWindow):
         self.doc.remove(ids)
         if self.doc.entries:
             self._select_ids([self.doc.entries[min(row, len(self.doc.entries) - 1)].id])
-        self.status.showMessage(f"Removed {len(ids)} image{'s' * (len(ids) != 1)} — Ctrl+Z to undo", 5000)
+        self.notify(f"Removed {len(ids)} image{'s' * (len(ids) != 1)} — Ctrl+Z to undo", 5000)
 
     def new_document(self) -> None:
         """Start the next PDF: drop all images, keep the page settings.
@@ -396,13 +367,13 @@ class MainWindow(QMainWindow):
         self._pixmaps.clear()
         self._thumbs.clear()
         self._failed.clear()
-        self.status.showMessage("New PDF started — Ctrl+Z brings the previous images back", 6000)
+        self.notify("New PDF started — Ctrl+Z brings the previous images back", 6000)
 
     def clear_all(self) -> None:
         if not self.doc.entries:
             return
         self.doc.clear()
-        self.status.showMessage("Cleared — Ctrl+Z to undo", 5000)
+        self.notify("Cleared — Ctrl+Z to undo", 5000)
 
     def _on_settings_edited(self, *_args, coalesce: str | None = None) -> None:
         if self._syncing:
@@ -509,7 +480,10 @@ class MainWindow(QMainWindow):
         self.a_undo.setEnabled(self.doc.can_undo)
         self.a_redo.setEnabled(self.doc.can_redo)
         self.count_label.setText(f"{n} page{'s' * (n != 1)}" if n else "")
-        self.setWindowTitle(f"{APP_NAME} — {n} page{'s' * (n != 1)}" if n else APP_NAME)
+        title = f"{APP_NAME} — Images · {n} page{'s' * (n != 1)}" if n else f"{APP_NAME} — Images"
+        if title != self.window_title:
+            self.window_title = title
+            self.titleChanged.emit(title)
 
     def _on_zoom(self, scale: float) -> None:
         # view_scale is scene points -> screen pixels; show it as print-size %
@@ -549,7 +523,7 @@ class MainWindow(QMainWindow):
         try:
             export_pdf(entries, settings, path, progress, title=Path(path).stem)
         except ExportCancelled:
-            self.status.showMessage("Export cancelled", 4000)
+            self.notify("Export cancelled")
             return
         except PermissionError:
             QMessageBox.critical(self, APP_NAME, f"Could not write\n{path}\n\n"
@@ -563,26 +537,11 @@ class MainWindow(QMainWindow):
             dlg.close()
 
         size_mb = os.path.getsize(path) / 1_048_576
-        self.status.showMessage(f"Saved {path} ({size_mb:.1f} MB)", 8000)
-        box = QMessageBox(self)
-        box.setWindowTitle(APP_NAME)
-        box.setIcon(QMessageBox.Icon.Information)
-        box.setText(f"Saved {len(entries)} page{'s' * (len(entries) != 1)} to\n{path}\n({size_mb:.1f} MB)")
-        open_btn = box.addButton("Open PDF", QMessageBox.ButtonRole.AcceptRole)
-        folder_btn = box.addButton("Show in folder", QMessageBox.ButtonRole.ActionRole)
-        new_btn = box.addButton("New PDF", QMessageBox.ButtonRole.ActionRole)
-        new_btn.setToolTip("Clear the images and start the next PDF (Ctrl+N)")
-        box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
-        box.setDefaultButton(open_btn)
-        box.exec()
-        if box.clickedButton() is open_btn:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
-        elif box.clickedButton() is folder_btn:
-            subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
-        elif box.clickedButton() is new_btn:
-            self.new_document()
+        self.notify(f"Saved {path} ({size_mb:.1f} MB)", 8000)
+        show_saved_dialog(self, f"Saved {len(entries)} page{'s' * (len(entries) != 1)} to\n{path}\n({size_mb:.1f} MB)",
+                          path, "New PDF", self.new_document)
 
-    # ------------------------------------------------- window-level drop
+    # ------------------------------------------------------------- drop
 
     def dragEnterEvent(self, ev) -> None:
         if ev.mimeData().hasUrls():

@@ -13,4 +13,4 @@ if str(_ROOT) not in sys.path:
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 _APP = QApplication.instance() or QApplication([])
-_APP.setOrganizationName("image-to-pdf-tests")  # keep real settings untouched
+_APP.setOrganizationName("to-pdf-tests")  # keep real settings untouched

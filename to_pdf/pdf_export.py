@@ -66,8 +66,8 @@ def export_pdf(entries: list[ImageEntry], settings: PageSettings, out_path: str,
     rl_config.useA85 = 0  # binary streams; ASCII85 would inflate images by 25%
     tmp_path = out_path + ".part"
     c = canvas.Canvas(tmp_path, pageCompression=1)
-    c.setCreator(f"Image to PDF {__version__}")
-    c.setProducer(f"Image to PDF {__version__}")
+    c.setCreator(f"To PDF {__version__}")
+    c.setProducer(f"To PDF {__version__}")
     if title:
         c.setTitle(title)
 

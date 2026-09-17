@@ -394,7 +394,9 @@ class PageView(QGraphicsView):
             # Fit the scene rect (pages plus padding) so no horizontal scrollbar appears.
             scale = (self.viewport().width() - 4) / self.sceneRect().width()
         else:
-            scale = min(vw / page.width(), vh / page.height())
+            # never wider than the scene rect, or a horizontal scrollbar appears
+            scale = min(vw / page.width(), vh / page.height(),
+                        (self.viewport().width() - 4) / self.sceneRect().width())
         anchor = self.transformationAnchor()
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)
         self.set_zoom(scale, user=False)

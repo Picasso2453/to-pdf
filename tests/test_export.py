@@ -9,8 +9,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtPdf import QPdfDocument
 from pypdf import PdfReader
 
-from image_to_pdf import imaging, pdf_export
-from image_to_pdf.model import (
+from to_pdf import imaging, pdf_export
+from to_pdf.model import (
     FIT_TO_IMAGE,
     MM,
     PAGE_SIZES,

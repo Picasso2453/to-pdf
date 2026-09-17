@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 
 from . import theme
 
@@ -86,6 +86,72 @@ def new_document() -> QIcon:
                         QPointF(15, 6.5), QPointF(11.5, 3), QPointF(11.5, 6.5), QPointF(15, 6.5)])
         p.drawLine(QPointF(10, 9), QPointF(10, 14))
         p.drawLine(QPointF(7.5, 11.5), QPointF(12.5, 11.5))
+    return _icon(draw)
+
+
+def home() -> QIcon:
+    """Four tiles: the start screen."""
+    def draw(p: QPainter) -> None:
+        for x, y in ((4, 4), (11, 4), (4, 11), (11, 11)):
+            p.drawRoundedRect(QRectF(x, y, 5, 5), 1.3, 1.3)
+    return _icon(draw)
+
+
+def folder_open() -> QIcon:
+    def draw(p: QPainter) -> None:
+        p.drawPolyline([QPointF(3, 15.5), QPointF(3, 5), QPointF(8, 5), QPointF(9.5, 6.8),
+                        QPointF(15.5, 6.8), QPointF(15.5, 9)])
+        p.drawPolygon(QPolygonF([QPointF(3, 15.5), QPointF(5.5, 9), QPointF(17.5, 9), QPointF(15, 15.5)]))
+    return _icon(draw)
+
+
+def save() -> QIcon:
+    def draw(p: QPainter) -> None:
+        p.drawRoundedRect(QRectF(3.5, 3.5, 13, 13), 2, 2)
+        p.drawPolyline([QPointF(6.5, 3.5), QPointF(6.5, 7.5), QPointF(13, 7.5), QPointF(13, 3.5)])
+        p.drawRect(QRectF(6.5, 11, 7, 5.5))
+    return _icon(draw)
+
+
+def paste(color: QColor = theme.INK) -> QIcon:
+    def draw(p: QPainter) -> None:
+        p.drawRoundedRect(QRectF(4.5, 5, 11, 12), 1.8, 1.8)
+        p.drawRoundedRect(QRectF(7.5, 3, 5, 3.5), 1, 1)
+        p.drawLine(QPointF(7.5, 10.5), QPointF(12.5, 10.5))
+        p.drawLine(QPointF(7.5, 13.5), QPointF(11, 13.5))
+    return _icon(draw, color)
+
+
+def fit_page() -> QIcon:
+    """A page inside corner brackets."""
+    def draw(p: QPainter) -> None:
+        p.drawRect(QRectF(7, 5.5, 6, 9))
+        for (x, y, dx, dy) in ((3, 3, 1, 1), (17, 3, -1, 1), (3, 17, 1, -1), (17, 17, -1, -1)):
+            p.drawPolyline([QPointF(x, y + 3 * dy), QPointF(x, y), QPointF(x + 3 * dx, y)])
+    return _icon(draw)
+
+
+def fit_width() -> QIcon:
+    """A page with arrows pointing to both sides."""
+    def draw(p: QPainter) -> None:
+        p.drawRect(QRectF(6.5, 4, 7, 12))
+        p.drawLine(QPointF(1.5, 10), QPointF(4.5, 10))
+        _arrow_head(p, QPointF(1.5, 10), 180, 2.6)
+        p.drawLine(QPointF(15.5, 10), QPointF(18.5, 10))
+        _arrow_head(p, QPointF(18.5, 10), 0, 2.6)
+    return _icon(draw)
+
+
+def page_setup() -> QIcon:
+    """A page with margin guides."""
+    def draw(p: QPainter) -> None:
+        p.drawRoundedRect(QRectF(4.5, 2.5, 11, 15), 1.5, 1.5)
+        pen = p.pen()
+        pen.setWidthF(1.1)
+        p.setPen(pen)
+        p.drawLine(QPointF(7.5, 6), QPointF(12.5, 6))
+        p.drawLine(QPointF(7.5, 9), QPointF(12.5, 9))
+        p.drawLine(QPointF(7.5, 12), QPointF(10.5, 12))
     return _icon(draw)
 
 

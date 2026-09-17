@@ -24,8 +24,8 @@ jobs:
       - name: Build exe
         run: |
           python tools/make_icon.py
-          python -m PyInstaller --noconfirm --clean image-to-pdf.spec
+          python -m PyInstaller --noconfirm --clean to-pdf.spec
       - uses: actions/upload-artifact@v4
         with:
-          name: image-to-pdf-exe
-          path: dist/image-to-pdf.exe
+          name: to-pdf-exe
+          path: dist/To PDF.exe
